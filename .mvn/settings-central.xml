@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Настройки только для этого учебного проекта.
+  В ~/.m2/settings.xml прописано корпоративное зеркало (maven.repo-ci.sfera.inno.local),
+  которое перехватывает все репозитории и недоступно вне корпоративной сети.
+  Этот файл возвращает сборку на Maven Central, не меняя глобальный конфиг.
+
+  Использование:  mvn -s .mvn/settings-central.xml clean package
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+  <mirrors>
+    <mirror>
+      <id>central-direct</id>
+      <name>Maven Central</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+      <mirrorOf>*</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>

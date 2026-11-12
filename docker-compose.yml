@@ -1,0 +1,54 @@
+# Spark standalone cluster для запуска приложений в client mode.
+# network_mode: host — драйвер стартует на хост-машине, а executors в контейнерах
+# должны открывать обратное соединение к нему; на Linux это самый простой способ
+# обеспечить взаимную видимость без проброса портов драйвера.
+services:
+  spark-master:
+    image: apache/spark:4.0.1
+    container_name: spark-master
+    network_mode: host
+    command: >
+      /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+      --host 127.0.0.1 --port 7077 --webui-port 8080
+    restart: unless-stopped
+
+  spark-worker:
+    image: apache/spark:4.0.1
+    container_name: spark-worker
+    network_mode: host
+    command: >
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker
+      spark://127.0.0.1:7077
+      --host 127.0.0.1 --webui-port 8081 --cores 2 --memory 2g
+    depends_on: [spark-master]
+    restart: unless-stopped
+
+  # Одноразовый драйвер: запускает приложение из target/spark-labs.jar на кластере
+  # в client mode. Локальный spark-dist и JDK на хосте для запуска не нужны.
+  # Профиль submit — чтобы `docker compose up -d` поднимал только master и worker.
+  #
+  #   docker compose run --rm spark-submit                      # lab3, аргументы по умолчанию
+  #   docker compose run --rm spark-submit \
+  #     --class ru.sparklabs.lab3.Lab3App /opt/app/spark-labs.jar 5000000
+  spark-submit:
+    image: apache/spark:4.0.1
+    profiles: [submit]
+    network_mode: host
+    volumes:
+      - ./target:/opt/app:ro
+    depends_on: [spark-master, spark-worker]
+    # spark.driver.host: executors подключаются к драйверу обратно; master и worker
+    # слушают на 127.0.0.1, драйвер должен объявлять себя там же.
+    entrypoint:
+      - /opt/spark/bin/spark-submit
+      - --master
+      - spark://127.0.0.1:7077
+      - --deploy-mode
+      - client
+      - --conf
+      - spark.driver.host=127.0.0.1
+      - --executor-memory
+      - 1g
+      - --total-executor-cores
+      - "2"
+    command: ["--class", "ru.sparklabs.lab3.Lab3App", "/opt/app/spark-labs.jar"]
